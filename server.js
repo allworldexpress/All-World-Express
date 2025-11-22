@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -6,7 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Fixed statuses (your requirement)
+// Fixed statuses
 const statuses = [
   "Parcel Booked",
   "In Transit",
@@ -16,24 +15,51 @@ const statuses = [
   "Failed / Returned"
 ];
 
-// MAIN API ENDPOINT
-app.get("/track/:id", (req, res) => {
-  const id = req.params.id;
+// TEMP storage (database ki jagah)
+let bookings = [];
 
-  // AWX + 7 digits validation
-  if(!/^AWX\d{7}$/.test(id)){
-    return res.json({ error: "Invalid Tracking ID format (Use AWX1234567)" });
+// 🔵 CREATE BOOKING API
+app.post("/book", (req, res) => {
+  const data = req.body;
+
+  if(!data.senderName || !data.receiverName){
+    return res.json({ success: false, message: "All fields required!" });
   }
 
-  // Random live-like status
-  const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+  // Auto Tracking ID
+  const trackingId = "AWX" + Math.floor(1000000 + Math.random()*9000000);
+
+  // Save locally
+  bookings.push({
+    trackingId,
+    ...data,
+    status: "Parcel Booked",
+    createdAt: new Date()
+  });
+
+  res.json({ success: true, trackingId });
+});
+
+// 🔵 TRACKING API
+app.get("/track/:id", (req, res) => {
+  const id = req.params.id;
+  const found = bookings.find(b => b.trackingId === id);
+
+  if(!found){
+    return res.json({ error: "Tracking ID not found!" });
+  }
 
   res.json({
     tracking_id: id,
-    status: randomStatus,
+    status: found.status,
     last_updated: new Date().toISOString()
   });
 });
 
-// SERVER RUNNING
-app.listen(3000, () => console.log("🟢 Tracking API running on port 3000"));
+// HOME PAGE CHECK
+app.get("/", (req, res) => {
+  res.send("AWX Tracking API is running...");
+});
+
+// START SERVER
+app.listen(3000, () => console.log("🟢 Server Running on Port 3000"));
